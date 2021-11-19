@@ -26,7 +26,7 @@ perf-measurement-interval-sec=5
 #gie-kitti-output-dir=streamscl
 
 [tiled-display]
-enable=0
+enable=1
 rows=1
 columns=1
 width=1280
@@ -54,7 +54,7 @@ cudadec-memtype=0
 [sink0]
 enable=1
 #Type - 1=FakeSink 2=EglSink 3=File
-type=1
+type=2
 sync=0
 source-id=0
 gpu-id=0
@@ -80,7 +80,7 @@ rtsp-port=10154
 udp-port=5401
 
 [osd]
-enable=0
+enable=1
 gpu-id=0
 border-width=1
 text-size=15
