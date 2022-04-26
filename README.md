@@ -7,7 +7,7 @@ An implementation of YOLOv5 running on DeepStream 5
 ```
 CUDA 10.2
 TensorRT 7.1
-DeepStream 5
+DeepStream 5.0
 ```
 
 ### How to Use
