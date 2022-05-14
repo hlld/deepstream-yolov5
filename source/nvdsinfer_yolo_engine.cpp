@@ -41,18 +41,12 @@ static bool getYoloNetworkInfo (NetworkInfo &networkInfo, const NvDsInferContext
         if (yoloCfg == "yolov5s_p6") {
             yoloType = "yolov5s_p6";
         }
-        else if (yoloCfg == "yolov5s_rep") {
-            yoloType = "yolov5s_rep";
-        }
         else {
             yoloType = "yolov5s";
         }
     } else if (yoloCfg.find("yolov5m") != std::string::npos) {
         if (yoloCfg == "yolov5m_p6") {
             yoloType = "yolov5m_p6";
-        }
-        else if (yoloCfg == "yolov5m_rep") {
-            yoloType = "yolov5m_rep";
         }
         else {
             yoloType = "yolov5m";
@@ -61,18 +55,12 @@ static bool getYoloNetworkInfo (NetworkInfo &networkInfo, const NvDsInferContext
         if (yoloCfg == "yolov5l_p6") {
             yoloType = "yolov5l_p6";
         }
-        else if (yoloCfg == "yolov5l_rep") {
-            yoloType = "yolov5l_rep";
-        }
         else {
             yoloType = "yolov5l";
         }
     } else if (yoloCfg.find("yolov5x") != std::string::npos) {
         if (yoloCfg == "yolov5x_p6") {
             yoloType = "yolov5x_p6";
-        }
-        else if (yoloCfg == "yolov5x_rep") {
-            yoloType = "yolov5x_rep";
         }
         else {
             yoloType = "yolov5x";

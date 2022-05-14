@@ -115,42 +115,6 @@ ILayer* convBlock(INetworkDefinition *network, std::map<std::string, Weights>& w
     return ew;
 }
 
-ILayer* convBlockRelu6(INetworkDefinition *network, std::map<std::string, Weights>& weightMap, ITensor& input, int outch, int ksize, int s, int g, std::string lname) {
-    Weights emptywts{ DataType::kFLOAT, nullptr, 0 };
-    int p = ksize / 2;
-    IConvolutionLayer* conv1 = network->addConvolutionNd(input, outch, DimsHW{ ksize, ksize }, weightMap[lname + ".conv.weight"], emptywts);
-    assert(conv1);
-    conv1->setStrideNd(DimsHW{ s, s });
-    conv1->setPaddingNd(DimsHW{ p, p });
-    conv1->setNbGroups(g);
-    IScaleLayer* bn1 = addBatchNorm2d(network, weightMap, *conv1->getOutput(0), lname + ".bn", 1e-3);
-
-    // relu6(x) = relu(x) - relu(x - 6)
-    auto relu6 = network->addActivation(*bn1->getOutput(0), ActivationType::kCLIP);
-    assert(relu6);
-    relu6->setAlpha(0);
-    relu6->setBeta(6);
-    return relu6;
-}
-
-ILayer* repBlock(INetworkDefinition *network, std::map<std::string, Weights>& weightMap, ITensor& input, int outch, int ksize, int s, int g, std::string lname) {
-    assert(ksize == 3);
-    int p = ksize / 2;
-    IConvolutionLayer* conv1 = network->addConvolutionNd(input, outch, DimsHW{ ksize, ksize }, 
-        weightMap[lname + ".conv_reparam.weight"], weightMap[lname + ".conv_reparam.bias"]);
-    assert(conv1);
-    conv1->setStrideNd(DimsHW{ s, s });
-    conv1->setPaddingNd(DimsHW{ p, p });
-    conv1->setNbGroups(g);
-
-    // silu = x * sigmoid
-    auto sig = network->addActivation(*conv1->getOutput(0), ActivationType::kSIGMOID);
-    assert(sig);
-    auto ew = network->addElementWise(*conv1->getOutput(0), *sig->getOutput(0), ElementWiseOperation::kPROD);
-    assert(ew);
-    return ew;
-}
-
 ILayer* focus(INetworkDefinition *network, std::map<std::string, Weights>& weightMap, ITensor& input, int inch, int outch, int ksize, std::string lname) {
     ISliceLayer *s1 = network->addSlice(input, Dims3{ 0, 0, 0 }, Dims3{ inch, Yolo::INPUT_H / 2, Yolo::INPUT_W / 2 }, Dims3{ 1, 2, 2 });
     ISliceLayer *s2 = network->addSlice(input, Dims3{ 0, 1, 0 }, Dims3{ inch, Yolo::INPUT_H / 2, Yolo::INPUT_W / 2 }, Dims3{ 1, 2, 2 });
@@ -159,17 +123,6 @@ ILayer* focus(INetworkDefinition *network, std::map<std::string, Weights>& weigh
     ITensor* inputTensors[] = { s1->getOutput(0), s2->getOutput(0), s3->getOutput(0), s4->getOutput(0) };
     auto cat = network->addConcatenation(inputTensors, 4);
     auto conv = convBlock(network, weightMap, *cat->getOutput(0), outch, ksize, 1, 1, lname + ".conv");
-    return conv;
-}
-
-ILayer* repFocus(INetworkDefinition *network, std::map<std::string, Weights>& weightMap, ITensor& input, int inch, int outch, int ksize, std::string lname) {
-    ISliceLayer *s1 = network->addSlice(input, Dims3{ 0, 0, 0 }, Dims3{ inch, Yolo::INPUT_H / 2, Yolo::INPUT_W / 2 }, Dims3{ 1, 2, 2 });
-    ISliceLayer *s2 = network->addSlice(input, Dims3{ 0, 1, 0 }, Dims3{ inch, Yolo::INPUT_H / 2, Yolo::INPUT_W / 2 }, Dims3{ 1, 2, 2 });
-    ISliceLayer *s3 = network->addSlice(input, Dims3{ 0, 0, 1 }, Dims3{ inch, Yolo::INPUT_H / 2, Yolo::INPUT_W / 2 }, Dims3{ 1, 2, 2 });
-    ISliceLayer *s4 = network->addSlice(input, Dims3{ 0, 1, 1 }, Dims3{ inch, Yolo::INPUT_H / 2, Yolo::INPUT_W / 2 }, Dims3{ 1, 2, 2 });
-    ITensor* inputTensors[] = { s1->getOutput(0), s2->getOutput(0), s3->getOutput(0), s4->getOutput(0) };
-    auto cat = network->addConcatenation(inputTensors, 4);
-    auto conv = repBlock(network, weightMap, *cat->getOutput(0), outch, ksize, 1, 1, lname + ".conv");
     return conv;
 }
 
@@ -213,23 +166,6 @@ ILayer* C3(INetworkDefinition *network, std::map<std::string, Weights>& weightMa
     ITensor *y1 = cv1->getOutput(0);
     for (int i = 0; i < n; i++) {
         auto b = bottleneck(network, weightMap, *y1, c_, c_, shortcut, g, 1.0, lname + ".m." + std::to_string(i));
-        y1 = b->getOutput(0);
-    }
-
-    ITensor* inputTensors[] = { y1, cv2->getOutput(0) };
-    auto cat = network->addConcatenation(inputTensors, 2);
-
-    auto cv3 = convBlock(network, weightMap, *cat->getOutput(0), c2, 1, 1, 1, lname + ".cv3");
-    return cv3;
-}
-
-ILayer* repCSP(INetworkDefinition *network, std::map<std::string, Weights>& weightMap, ITensor& input, int c1, int c2, int n, bool shortcut, int g, float e, std::string lname) {
-    int c_ = (int)((float)c2 * e);
-    auto cv1 = convBlock(network, weightMap, input, c_, 1, 1, 1, lname + ".cv1");
-    auto cv2 = convBlock(network, weightMap, input, c_, 1, 1, 1, lname + ".cv2");
-    ITensor *y1 = cv1->getOutput(0);
-    for (int i = 0; i < n; i++) {
-        auto b = repBlock(network, weightMap, *y1, c_, 3, 1, g, lname + ".m." + std::to_string(i));
         y1 = b->getOutput(0);
     }
 

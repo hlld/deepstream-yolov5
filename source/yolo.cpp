@@ -31,8 +31,6 @@ extern void buildNetwork(INetworkDefinition* network, float gd, float gw, std::m
     std::string inputBlobName, std::string outputBlobName);
 extern void buildNetwork_p6(INetworkDefinition* network, float gd, float gw, std::map<std::string, Weights>& weightMap, 
     std::string inputBlobName, std::string outputBlobName);
-extern void buildNetwork_rep(INetworkDefinition* network, float gd, float gw, std::map<std::string, Weights>& weightMap, 
-    std::string inputBlobName, std::string outputBlobName);
 extern std::map<std::string, Weights> loadWeights(const std::string file);
 
 Yolo::Yolo(const NetworkInfo& networkInfo)
@@ -119,26 +117,6 @@ NvDsInferStatus Yolo::parseModel(nvinfer1::INetworkDefinition& network) {
         gd = 1.33;
         gw = 1.25;
         buildNetwork_p6(&network, gd, gw, m_TrtWeights, m_InputBlobName, "prob");
-    }
-    else if (m_NetworkType == "yolov5s_rep") {
-        gd = 0.33;
-        gw = 0.50;
-        buildNetwork_rep(&network, gd, gw, m_TrtWeights, m_InputBlobName, "prob");
-    }
-    else if (m_NetworkType == "yolov5m_rep") {
-        gd = 0.67;
-        gw = 0.75;
-        buildNetwork_rep(&network, gd, gw, m_TrtWeights, m_InputBlobName, "prob");
-    }
-    else if (m_NetworkType == "yolov5l_rep") {
-        gd = 1.0;
-        gw = 1.0;
-        buildNetwork_rep(&network, gd, gw, m_TrtWeights, m_InputBlobName, "prob");
-    }
-    else if (m_NetworkType == "yolov5x_rep") {
-        gd = 1.33;
-        gw = 1.25;
-        buildNetwork_rep(&network, gd, gw, m_TrtWeights, m_InputBlobName, "prob");
     }
     else {
         std::cout << "Building Yolo network failed!" << std::endl;
