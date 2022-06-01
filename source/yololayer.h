@@ -1,9 +1,24 @@
 #ifndef _YOLO_LAYER_H
 #define _YOLO_LAYER_H
 
+#include <iostream>
 #include <vector>
 #include <string>
+#include <vector>
+#include <algorithm>
+#include <cudnn.h>
 #include "NvInfer.h"
+
+#ifndef CUDA_CHECK
+#define CUDA_CHECK(callstr)                                                                    \
+    {                                                                                          \
+        cudaError_t error_code = callstr;                                                      \
+        if (error_code != cudaSuccess) {                                                       \
+            std::cerr << "CUDA error " << error_code << " at " << __FILE__ << ":" << __LINE__; \
+            assert(0);                                                                         \
+        }                                                                                      \
+    }
+#endif
 
 namespace Yolo
 {
@@ -22,107 +37,89 @@ namespace Yolo
 
     static constexpr int LOCATIONS = 4;
     struct alignas(float) Detection {
-        //center_x center_y w h
         float bbox[LOCATIONS];
-        float conf;  // bbox_conf * cls_conf
+        float conf;
         float class_id;
     };
 }
 
 namespace nvinfer1
 {
-    class YoloLayerPlugin : public IPluginV2IOExt
+    class YoloLayerPlugin : public IPluginV2
     {
     public:
-        YoloLayerPlugin(int classCount, int netWidth, int netHeight, int maxOut, const std::vector<Yolo::YoloKernel>& vYoloKernel);
+        YoloLayerPlugin(int classCount, int netWidth, int netHeight, int maxOut, 
+            const std::vector<Yolo::YoloKernel>& vYoloKernel);
         YoloLayerPlugin(const void* data, size_t length);
         ~YoloLayerPlugin();
 
-        int getNbOutputs() const override
-        {
-            return 1;
+        const char* getPluginType () const noexcept override { return "YoloLayer_TRT"; }
+        const char* getPluginVersion () const noexcept override { return "1"; }
+        int getNbOutputs () const noexcept override { return 1; }
+
+        nvinfer1::Dims getOutputDimensions (
+            int index, const Dims* inputs,
+            int nbInputDims) noexcept override;
+
+        bool supportsFormat (
+            DataType type, PluginFormat format) const noexcept override;
+
+        void configureWithFormat (
+            const Dims* inputDims, int nbInputs,
+            const Dims* outputDims, int nbOutputs,
+            DataType type, PluginFormat format, int maxBatchSize) noexcept override;
+
+        int initialize () noexcept override { return 0; }
+        void terminate () noexcept override {}
+        size_t getWorkspaceSize (int maxBatchSize) const noexcept override { return 0; }
+        int32_t enqueue (
+            int32_t batchSize, void const* const* inputs, void* const* outputs,
+            void* workspace, cudaStream_t stream) noexcept override;
+        size_t getSerializationSize() const noexcept override;
+        void serialize (void* buffer) const noexcept override;
+        void destroy () noexcept override { delete this; }
+        IPluginV2* clone() const noexcept override;
+
+        void setPluginNamespace (const char* pluginNamespace) noexcept override {
+            mNamespace = pluginNamespace;
         }
-
-        Dims getOutputDimensions(int index, const Dims* inputs, int nbInputDims) override;
-
-        int initialize() override;
-
-        virtual void terminate() override {};
-
-        virtual size_t getWorkspaceSize(int maxBatchSize) const override { return 0; }
-
-        virtual int enqueue(int batchSize, const void* const* inputs, void** outputs, void* workspace, cudaStream_t stream) override;
-
-        virtual size_t getSerializationSize() const override;
-
-        virtual void serialize(void* buffer) const override;
-
-        bool supportsFormatCombination(int pos, const PluginTensorDesc* inOut, int nbInputs, int nbOutputs) const override {
-            return inOut[pos].format == TensorFormat::kLINEAR && inOut[pos].type == DataType::kFLOAT;
+        virtual const char* getPluginNamespace () const noexcept override {
+            return mNamespace.c_str();
         }
-
-        const char* getPluginType() const override;
-
-        const char* getPluginVersion() const override;
-
-        void destroy() override;
-
-        IPluginV2IOExt* clone() const override;
-
-        void setPluginNamespace(const char* pluginNamespace) override;
-
-        const char* getPluginNamespace() const override;
-
-        DataType getOutputDataType(int index, const nvinfer1::DataType* inputTypes, int nbInputs) const override;
-
-        bool isOutputBroadcastAcrossBatch(int outputIndex, const bool* inputIsBroadcasted, int nbInputs) const override;
-
-        bool canBroadcastInputAcrossBatch(int inputIndex) const override;
-
-        void attachToContext(
-            cudnnContext* cudnnContext, cublasContext* cublasContext, IGpuAllocator* gpuAllocator) override;
-
-        void configurePlugin(const PluginTensorDesc* in, int nbInput, const PluginTensorDesc* out, int nbOutput) override;
-
-        void detachFromContext() override;
 
     private:
-        void forwardGpu(const float* const* inputs, float *output, cudaStream_t stream, int batchSize = 1);
+        std::string mNamespace;
         int mThreadCount = 256;
-        const char* mPluginNamespace;
         int mKernelCount;
         int mClassCount;
         int mYoloV5NetWidth;
         int mYoloV5NetHeight;
         int mMaxOutObject;
+        void **mAnchor;
         std::vector<Yolo::YoloKernel> mYoloKernel;
-        void** mAnchor;
     };
 
     class YoloPluginCreator : public IPluginCreator
     {
     public:
         YoloPluginCreator();
-
         ~YoloPluginCreator() override = default;
 
-        const char* getPluginName() const override;
+        const char* getPluginName () const noexcept override { return "YoloLayer_TRT"; }
+        const char* getPluginVersion () const noexcept override { return "1"; }
 
-        const char* getPluginVersion() const override;
+        const PluginFieldCollection* getFieldNames() noexcept override { return &mFC; };
 
-        const PluginFieldCollection* getFieldNames() override;
+        IPluginV2* createPlugin (
+            const char* name, const PluginFieldCollection* fc) noexcept override;
 
-        IPluginV2IOExt* createPlugin(const char* name, const PluginFieldCollection* fc) override;
+        IPluginV2* deserializePlugin (
+            const char* name, const void* serialData, size_t serialLength) noexcept override;
 
-        IPluginV2IOExt* deserializePlugin(const char* name, const void* serialData, size_t serialLength) override;
-
-        void setPluginNamespace(const char* libNamespace) override
-        {
+        void setPluginNamespace(const char* libNamespace) noexcept override {
             mNamespace = libNamespace;
         }
-
-        const char* getPluginNamespace() const override
-        {
+        const char* getPluginNamespace() const noexcept override {
             return mNamespace.c_str();
         }
 

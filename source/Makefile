@@ -20,26 +20,22 @@
 # DEALINGS IN THE SOFTWARE.
 ################################################################################
 
-CUDA_VER:=10.2
-ifeq ($(CUDA_VER),)
-  $(error "CUDA_VER is not set")
-endif
 CC:= g++
-NVCC:=/usr/local/cuda-$(CUDA_VER)/bin/nvcc
+NVCC:=/usr/local/cuda/bin/nvcc
 
-EXFLAGS:= -I/data/Software/TensorRT-7.1.3.4/include -I/opt/nvidia/deepstream/deepstream/sources/includes
+EXFLAGS:= -I/data/Downloads/TensorRT-8.2.5.1/include -I/opt/nvidia/deepstream/deepstream/sources/includes
 CFLAGS:= -Wall -std=c++11 -shared -fPIC -Wno-error=deprecated-declarations
-CFLAGS+= -I../../includes -I/usr/local/cuda-$(CUDA_VER)/include $(EXFLAGS)
+CFLAGS+= -I../../includes -I/usr/local/cuda/include $(EXFLAGS)
 
-EXLIBS:= -L/data/Software/TensorRT-7.1.3.4/lib
-LIBS:= -lnvinfer_plugin -lnvinfer -lnvparsers -L/usr/local/cuda-$(CUDA_VER)/lib64 -lcudart -lcublas -lstdc++fs $(EXLIBS)
+EXLIBS:= -L/data/Downloads/TensorRT-8.2.5.1/lib
+LIBS:= -lnvinfer_plugin -lnvinfer -lnvparsers -L/usr/local/cuda/lib64 -lcudart -lcublas -lstdc++fs $(EXLIBS)
 LFLAGS:= -shared -Wl,--start-group $(LIBS) -Wl,--end-group
 
 INCS:= $(wildcard *.h)
-SRCFILES:= nvdsinfer_yolo_engine.cpp \
+SRCFILES:= nvdsinfer_yolo_engine.cpp   \
            nvdsparsebbox_Yolo.cpp   \
-           trt_utils.cpp              \
-           yolo.cpp              \
+           trt_utils.cpp         \
+           yolo_trt.cpp     \
            yolov5.cpp   \
            yololayer.cu
 TARGET_LIB:= libnvdsinfer_custom_impl_yolov5.so

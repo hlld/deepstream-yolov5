@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,8 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef _YOLO_H_
-#define _YOLO_H_
+#ifndef _YOLO_TRT_H_
+#define _YOLO_TRT_H_
 
 #include <stdint.h>
 #include <string>
@@ -56,7 +56,8 @@ public:
     }
     NvDsInferStatus parseModel(nvinfer1::INetworkDefinition& network) override;
 
-    nvinfer1::ICudaEngine *createEngine (nvinfer1::IBuilder* builder);
+    nvinfer1::ICudaEngine *createEngine (
+        nvinfer1::IBuilder* builder, nvinfer1::IBuilderConfig* config);
 
 protected:
     const std::string m_NetworkType;
@@ -72,4 +73,10 @@ private:
     void destroyNetworkUtils();
 };
 
-#endif // _YOLO_H_
+void buildNetwork(INetworkDefinition* network, float gd, float gw, std::map<std::string, 
+    Weights>& weightMap, std::string inputBlobName, std::string outputBlobName);
+void buildNetwork_p6(INetworkDefinition* network, float gd, float gw, std::map<std::string, 
+    Weights>& weightMap, std::string inputBlobName, std::string outputBlobName);
+std::map<std::string, Weights> loadWeights(const std::string file);
+
+#endif // _YOLO_TRT_H_

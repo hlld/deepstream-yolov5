@@ -24,26 +24,22 @@
 #ifndef __TRT_UTILS_H__
 #define __TRT_UTILS_H__
 
-#include <set>
-#include <map>
+#include <iostream>
 #include <string>
 #include <vector>
 #include <cassert>
-#include <iostream>
 #include <fstream>
 
 #include "NvInfer.h"
 
 #define UNUSED(expr) (void)(expr)
+
 #define DIVUP(n, d) ((n) + (d)-1) / (d)
 
 std::string trim(std::string s);
+
 float clamp(const float val, const float minVal, const float maxVal);
+
 bool fileExists(const std::string fileName, bool verbose = true);
-std::vector<float> loadWeights(const std::string weightsFilePath, const std::string& networkType);
-std::string dimsToString(const nvinfer1::Dims d);
-void displayDimType(const nvinfer1::Dims d);
-int getNumChannels(nvinfer1::ITensor* t);
-uint64_t get3DTensorVolume(nvinfer1::Dims inputDims);
 
 #endif

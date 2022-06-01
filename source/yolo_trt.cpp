@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,18 +20,10 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "yolo.h"
+#include "yolo_trt.h"
 #include <cassert>
 #include <iostream>
 #include <fstream>
-#include <iomanip>
-#include <iterator>
-
-extern void buildNetwork(INetworkDefinition* network, float gd, float gw, std::map<std::string, Weights>& weightMap, 
-    std::string inputBlobName, std::string outputBlobName);
-extern void buildNetwork_p6(INetworkDefinition* network, float gd, float gw, std::map<std::string, Weights>& weightMap, 
-    std::string inputBlobName, std::string outputBlobName);
-extern std::map<std::string, Weights> loadWeights(const std::string file);
 
 Yolo::Yolo(const NetworkInfo& networkInfo)
     : m_NetworkType(networkInfo.networkType),
@@ -47,11 +39,12 @@ Yolo::~Yolo()
     destroyNetworkUtils();
 }
 
-nvinfer1::ICudaEngine *Yolo::createEngine(nvinfer1::IBuilder* builder)
+nvinfer1::ICudaEngine *Yolo::createEngine (
+    nvinfer1::IBuilder* builder, nvinfer1::IBuilderConfig* config)
 {
     assert (builder);
 
-    nvinfer1::INetworkDefinition *network = builder->createNetwork();
+    nvinfer1::INetworkDefinition *network = builder->createNetworkV2(0);
     if (parseModel(*network) != NVDSINFER_SUCCESS) {
         network->destroy();
         return nullptr;
@@ -59,14 +52,13 @@ nvinfer1::ICudaEngine *Yolo::createEngine(nvinfer1::IBuilder* builder)
 
     // Build the engine
     std::cout << "Building the TensorRT Engine..." << std::endl;
-    nvinfer1::ICudaEngine * engine = builder->buildCudaEngine(*network);
+    nvinfer1::ICudaEngine * engine = builder->buildEngineWithConfig(*network, *config);
     if (engine) {
         std::cout << "Building complete!" << std::endl;
     } else {
         std::cerr << "Building engine failed!" << std::endl;
     }
 
-    // destroy
     network->destroy();
     return engine;
 }
@@ -75,8 +67,7 @@ NvDsInferStatus Yolo::parseModel(nvinfer1::INetworkDefinition& network) {
     destroyNetworkUtils();
     m_TrtWeights = loadWeights(m_WtsFilePath);
 
-    // build yolo network
-    std::cout << "Building Yolo network..." << std::endl;
+    std::cout << "Building YoloV5 network..." << std::endl;
     float gd = 1.0, gw = 1.0;
     if (m_NetworkType == "yolov5s") {
         gd = 0.33;
@@ -119,16 +110,16 @@ NvDsInferStatus Yolo::parseModel(nvinfer1::INetworkDefinition& network) {
         buildNetwork_p6(&network, gd, gw, m_TrtWeights, m_InputBlobName, "prob");
     }
     else {
-        std::cout << "Building Yolo network failed!" << std::endl;
+        std::cout << "Building YoloV5 network failed!" << std::endl;
         return NVDSINFER_CONFIG_FAILED;
     }
-    std::cout << "Building Yolo network complete!" << std::endl;
+    std::cout << "Building YoloV5 network complete!" << std::endl;
 
     return NVDSINFER_SUCCESS;
 }
 
 void Yolo::destroyNetworkUtils() {
-    // deallocate the weights
+    // Deallocate the weights
     for (auto& mem : m_TrtWeights)
     {
         free(const_cast<void *>(mem.second.values));

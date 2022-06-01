@@ -23,8 +23,6 @@
 #include "trt_utils.h"
 
 #include <experimental/filesystem>
-#include <fstream>
-#include <iomanip>
 #include <functional>
 #include <algorithm>
 #include <math.h>
@@ -62,96 +60,4 @@ bool fileExists(const std::string fileName, bool verbose)
         return false;
     }
     return true;
-}
-
-std::vector<float> loadWeights(const std::string weightsFilePath, const std::string& networkType)
-{
-    assert(fileExists(weightsFilePath));
-    std::cout << "Loading pre-trained weights..." << std::endl;
-    std::ifstream file(weightsFilePath, std::ios_base::binary);
-    assert(file.good());
-    std::string line;
-
-    if (networkType == "yolov2")
-    {
-        // Remove 4 int32 bytes of data from the stream belonging to the header
-        file.ignore(4 * 4);
-    }
-    else if ((networkType == "yolov3") || (networkType == "yolov3-tiny")
-             || (networkType == "yolov2-tiny"))
-    {
-        // Remove 5 int32 bytes of data from the stream belonging to the header
-        file.ignore(4 * 5);
-    }
-    else
-    {
-        std::cout << "Invalid network type" << std::endl;
-        assert(0);
-    }
-
-    std::vector<float> weights;
-    char floatWeight[4];
-    while (!file.eof())
-    {
-        file.read(floatWeight, 4);
-        assert(file.gcount() == 4);
-        weights.push_back(*reinterpret_cast<float*>(floatWeight));
-        if (file.peek() == std::istream::traits_type::eof()) break;
-    }
-    std::cout << "Loading weights of " << networkType << " complete!"
-              << std::endl;
-    std::cout << "Total Number of weights read : " << weights.size() << std::endl;
-    return weights;
-}
-
-std::string dimsToString(const nvinfer1::Dims d)
-{
-    std::stringstream s;
-    assert(d.nbDims >= 1);
-    for (int i = 0; i < d.nbDims - 1; ++i)
-    {
-        s << std::setw(4) << d.d[i] << " x";
-    }
-    s << std::setw(4) << d.d[d.nbDims - 1];
-
-    return s.str();
-}
-
-void displayDimType(const nvinfer1::Dims d)
-{
-    std::cout << "(" << d.nbDims << ") ";
-    for (int i = 0; i < d.nbDims; ++i)
-    {
-        switch (d.type[i])
-        {
-        case nvinfer1::DimensionType::kSPATIAL: std::cout << "kSPATIAL "; break;
-        case nvinfer1::DimensionType::kCHANNEL: std::cout << "kCHANNEL "; break;
-        case nvinfer1::DimensionType::kINDEX: std::cout << "kINDEX "; break;
-        case nvinfer1::DimensionType::kSEQUENCE: std::cout << "kSEQUENCE "; break;
-        }
-    }
-    std::cout << std::endl;
-}
-
-int getNumChannels(nvinfer1::ITensor* t)
-{
-    nvinfer1::Dims d = t->getDimensions();
-    assert(d.nbDims == 3);
-
-    return d.d[0];
-}
-
-uint64_t get3DTensorVolume(nvinfer1::Dims inputDims)
-{
-    assert(inputDims.nbDims == 3);
-    return inputDims.d[0] * inputDims.d[1] * inputDims.d[2];
-}
-
-void printLayerInfo(std::string layerIndex, std::string layerName, std::string layerInput,
-                    std::string layerOutput, std::string weightPtr)
-{
-    std::cout << std::setw(6) << std::left << layerIndex << std::setw(15) << std::left << layerName;
-    std::cout << std::setw(20) << std::left << layerInput << std::setw(20) << std::left
-              << layerOutput;
-    std::cout << std::setw(6) << std::left << weightPtr << std::endl;
 }

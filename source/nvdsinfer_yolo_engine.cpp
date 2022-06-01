@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2019-2021, NVIDIA CORPORATION. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -22,7 +22,7 @@
 
 #include "nvdsinfer_custom_impl.h"
 #include "nvdsinfer_context.h"
-#include "yolo.h"
+#include "yolo_trt.h"
 #include "trt_utils.h"
 #include <iostream>
 #include <algorithm>
@@ -85,7 +85,7 @@ static bool getYoloNetworkInfo (NetworkInfo &networkInfo, const NvDsInferContext
     }
 
     if (!fileExists(networkInfo.wtsFilePath)) {
-        std::cerr << "Yolo config file or weights file is NOT exist."
+        std::cerr << "Yolo weights file is NOT exist."
                   << std::endl;
         return false;
     }
@@ -106,12 +106,14 @@ IModelParser* NvDsInferCreateModelParser(
 #else
 extern "C"
 bool NvDsInferYoloCudaEngineGet(nvinfer1::IBuilder * const builder,
+        nvinfer1::IBuilderConfig * const builderConfig,
         const NvDsInferContextInitParams * const initParams,
         nvinfer1::DataType dataType,
         nvinfer1::ICudaEngine *& cudaEngine);
 
 extern "C"
 bool NvDsInferYoloCudaEngineGet(nvinfer1::IBuilder * const builder,
+        nvinfer1::IBuilderConfig * const builderConfig,
         const NvDsInferContextInitParams * const initParams,
         nvinfer1::DataType dataType,
         nvinfer1::ICudaEngine *& cudaEngine)
@@ -122,7 +124,7 @@ bool NvDsInferYoloCudaEngineGet(nvinfer1::IBuilder * const builder,
     }
 
     Yolo yolo(networkInfo);
-    cudaEngine = yolo.createEngine (builder);
+    cudaEngine = yolo.createEngine (builder, builderConfig);
     if (cudaEngine == nullptr)
     {
         std::cerr << "Failed to build cuda engine on "
